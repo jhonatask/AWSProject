@@ -1,0 +1,62 @@
+buildscript {
+    ext{
+        springBootVersion = '2.7.2'
+    }
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath 'com.palantir.gradle.docker:gradle-docker:0.34.0'
+    }
+}
+plugins {
+    id 'org.springframework.boot' version '2.7.2'
+    id 'io.spring.dependency-management' version '1.0.12.RELEASE'
+    id 'java'
+    id 'com.palantir.docker' version '0.34.0'
+}
+
+group = 'jhonatask'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+bootJar{
+    baseName = 'develop'
+    version = '1.0.0'
+}
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+task unpack(type: Copy){
+    dependsOn bootJar
+    from(zipTree(tasks.bootJar.outputs.files.singleFile))
+    into("build/dependency")
+}
+
+docker{
+    name "${project.group}/${bootJar.baseName}"
+    tags "$bootJar.version"
+    copySpec.from(tasks.unpack.outputs).into("dependency")
+    buildArgs(['DEPENDENCY': "dependency"])
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
